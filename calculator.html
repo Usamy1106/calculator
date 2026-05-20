@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>計算機 — fractions &amp; equations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/13.0.0/math.min.js"></script>
+<style>
+:root {
+  --paper: #F2ECDF;
+  --paper-deep: #E8DFCB;
+  --paper-shadow: #D9CCB0;
+  --ink: #1A1814;
+  --ink-soft: #4A4339;
+  --ink-faint: #8A7E6C;
+  --sumi: #14110D;
+  --shu: #B83A2C;
+  --shu-deep: #8E2A1F;
+  --gold: #9A7B3D;
+  --line: rgba(20, 17, 13, 0.12);
+  --line-soft: rgba(20, 17, 13, 0.06);
+  --line-strong: rgba(20, 17, 13, 0.28);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  position: relative;
+  background-image:
+    radial-gradient(ellipse at 15% 20%, rgba(184, 58, 44, 0.04), transparent 50%),
+    radial-gradient(ellipse at 85% 80%, rgba(154, 123, 61, 0.05), transparent 50%);
+}
+
+/* paper grain */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 0.08 0 0 0 0 0.06 0 0 0 0 0.04 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: multiply;
+}
+
+.app {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* HEADER */
+header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 56px;
+  height: 2px;
+  background: var(--shu);
+}
+
+.title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 600;
+  font-size: 2rem;
+  letter-spacing: 0.1em;
+  color: var(--sumi);
+}
+
+.title-mark {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.15em;
+}
+
+.subtitle {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--ink-soft);
+  margin-top: 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+.hints {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 0.8rem;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.hint-label {
+  letter-spacing: 0.05em;
+}
+
+.hint code {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--shu-deep);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* DISPLAY */
+.display {
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  padding: 1.5rem 1.4rem 1.4rem;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(20, 17, 13, 0.04);
+}
+
+/* corner mark */
+.display::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  background: var(--shu);
+  border-radius: 50%;
+}
+
+.input-area {
+  font-family: 'EB Garamond', 'Noto Serif JP', serif;
+  font-size: 1.6rem;
+  color: var(--ink);
+  word-break: break-word;
+  min-height: 2.2rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.input-area.empty {
+  color: var(--ink-faint);
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+.result-area {
+  margin-top: auto;
+  padding-top: 1rem;
+  text-align: right;
+  min-height: 2.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.result-main {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--sumi);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.result-prefix {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--shu-deep);
+  font-weight: 400;
+}
+
+.result-decimal {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.95rem;
+  color: var(--ink-faint);
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+.result-area.error .result-main {
+  color: var(--shu-deep);
+  font-style: italic;
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+/* fraction display */
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin: 0 0.15em;
+  line-height: 1;
+  font-size: 0.85em;
+}
+
+.frac .num, .frac .den {
+  padding: 0.05em 0.35em;
+  line-height: 1.15;
+}
+
+.frac .num {
+  border-bottom: 1.5px solid currentColor;
+}
+
+/* BUTTONS */
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.55rem;
+}
+
+.btn {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--paper-deep);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 1rem 0;
+  font-size: 1.15rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  border-radius: 3px;
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(20, 17, 13, 0.06);
+}
+
+.btn:hover {
+  background: #EFE6D0;
+  border-color: var(--line-strong);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.98);
+  background: var(--sumi);
+  color: var(--paper);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.btn-num {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.45rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.btn-op {
+  color: var(--ink-soft);
+  font-family: 'EB Garamond', serif;
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.btn-var {
+  color: var(--shu-deep);
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.btn-clear {
+  color: var(--shu-deep);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.btn-equals {
+  background: var(--sumi);
+  color: var(--paper);
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em;
+  grid-column: span 2;
+  border-color: var(--sumi);
+  font-size: 1.05rem;
+}
+
+.btn-equals:hover {
+  background: var(--shu);
+  border-color: var(--shu);
+}
+
+.btn-equals:active {
+  background: var(--shu-deep);
+  color: var(--paper);
+}
+
+/* HISTORY */
+.history {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.6rem;
+}
+
+.history-title {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.history-clear {
+  background: none;
+  border: none;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.75rem;
+  color: var(--shu-deep);
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  padding: 0;
+}
+
+.history-clear:hover { color: var(--shu); }
+
+.history-list {
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-shadow) transparent;
+}
+
+.history-list::-webkit-scrollbar { width: 5px; }
+.history-list::-webkit-scrollbar-thumb {
+  background: var(--paper-shadow);
+  border-radius: 2px;
+}
+
+.history-item {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.95rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  transition: padding 0.15s ease;
+}
+
+.history-item:last-child { border-bottom: none; }
+.history-item:hover { padding-left: 0.4rem; }
+.history-item:hover .expr { color: var(--shu-deep); }
+
+.history-item .expr {
+  color: var(--ink-soft);
+  font-style: italic;
+  transition: color 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item .result {
+  color: var(--sumi);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.history-empty {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 1rem 0;
+  letter-spacing: 0.05em;
+}
+
+footer {
+  margin-top: 0.5rem;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  text-align: center;
+  letter-spacing: 0.15em;
+}
+
+/* RESPONSIVE */
+@media (max-width: 480px) {
+  body { padding: 1rem 0.75rem; }
+  .title { font-size: 1.6rem; }
+  .subtitle { font-size: 0.9rem; }
+  .input-area { font-size: 1.35rem; }
+  .input-area.empty { font-size: 1rem; }
+  .result-main { font-size: 1.7rem; }
+  .display { padding: 1.2rem 1rem 1.1rem; min-height: 130px; }
+  .btn { padding: 0.85rem 0; font-size: 1rem; }
+  .btn-num { font-size: 1.3rem; }
+  .btn-op, .btn-var { font-size: 1.25rem; }
+  .hints { font-size: 0.72rem; gap: 0.8rem; }
+}
+
+/* ENTRANCE */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes resultPulse {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.app > * {
+  animation: fadeUp 0.6s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.app > *:nth-child(1) { animation-delay: 0.05s; }
+.app > *:nth-child(2) { animation-delay: 0.18s; }
+.app > *:nth-child(3) { animation-delay: 0.31s; }
+.app > *:nth-child(4) { animation-delay: 0.44s; }
+.app > *:nth-child(5) { animation-delay: 0.57s; }
+
+.result-main.animate {
+  animation: resultPulse 0.35s ease both;
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-row">
+        <div class="title">計算機</div>
+        <div class="title-mark">— No. 01</div>
+      </div>
+      <div class="subtitle">a calculator for fractions &amp; equations</div>
+      <div class="hints">
+        <div class="hint">
+          <span class="hint-label">分数</span>
+          <code>1/2 + 1/3</code>
+        </div>
+        <div class="hint">
+          <span class="hint-label">方程式</span>
+          <code>2x + 3 = 7</code>
+        </div>
+      </div>
+    </header>
+
+    <div class="display">
+      <div class="input-area empty" id="input">式を入力してください</div>
+      <div class="result-area" id="result"></div>
+    </div>
+
+    <div class="buttons" id="buttons"></div>
+
+    <div class="history">
+      <div class="history-header">
+        <div class="history-title">history</div>
+        <button class="history-clear" id="clear-history">clear</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="history-empty">まだ計算履歴はありません</div>
+      </div>
+    </div>
+
+    <footer>made with ink &amp; paper · 紙と墨で</footer>
+  </div>
+
+<script>
+'use strict';
+
+// ─── Setup math.js for exact fraction arithmetic ───
+math.config({ number: 'Fraction' });
+
+// ─── State ───
+let currentExpr = '';
+const history = [];
+
+// ─── DOM refs ───
+const inputEl   = document.getElementById('input');
+const resultEl  = document.getElementById('result');
+const buttonsEl = document.getElementById('buttons');
+const historyEl = document.getElementById('history-list');
+const clearHistBtn = document.getElementById('clear-history');
+
+// ─── Button definitions ───
+const BUTTONS = [
+  { label: 'AC', cls: 'btn-clear', act: 'clear' },
+  { label: '⌫',  cls: 'btn-clear', act: 'back' },
+  { label: '(',  cls: 'btn-op',    act: 'ins', val: '(' },
+  { label: ')',  cls: 'btn-op',    act: 'ins', val: ')' },
+
+  { label: '7',  cls: 'btn-num',   act: 'ins', val: '7' },
+  { label: '8',  cls: 'btn-num',   act: 'ins', val: '8' },
+  { label: '9',  cls: 'btn-num',   act: 'ins', val: '9' },
+  { label: '÷',  cls: 'btn-op',    act: 'ins', val: '÷' },
+
+  { label: '4',  cls: 'btn-num',   act: 'ins', val: '4' },
+  { label: '5',  cls: 'btn-num',   act: 'ins', val: '5' },
+  { label: '6',  cls: 'btn-num',   act: 'ins', val: '6' },
+  { label: '×',  cls: 'btn-op',    act: 'ins', val: '×' },
+
+  { label: '1',  cls: 'btn-num',   act: 'ins', val: '1' },
+  { label: '2',  cls: 'btn-num',   act: 'ins', val: '2' },
+  { label: '3',  cls: 'btn-num',   act: 'ins', val: '3' },
+  { label: '−',  cls: 'btn-op',    act: 'ins', val: '-' },
+
+  { label: '0',  cls: 'btn-num',   act: 'ins', val: '0' },
+  { label: '.',  cls: 'btn-num',   act: 'ins', val: '.' },
+  { label: 'x',  cls: 'btn-var',   act: 'ins', val: 'x' },
+  { label: '+',  cls: 'btn-op',    act: 'ins', val: '+' },
+
+  { label: '/',  cls: 'btn-op',    act: 'ins', val: '/' },
+  { label: '=',  cls: 'btn-var',   act: 'ins', val: '=' },
+  { label: '計算', cls: 'btn-equals', act: 'eval' },
+];
+
+// ─── Render buttons ───
+BUTTONS.forEach(b => {
+  const el = document.createElement('button');
+  el.className = `btn ${b.cls}`;
+  el.textContent = b.label;
+  el.addEventListener('click', () => handle(b));
+  buttonsEl.appendChild(el);
+});
+
+function handle(b) {
+  switch (b.act) {
+    case 'clear':  clearAll();        break;
+    case 'back':   backspace();       break;
+    case 'ins':    insert(b.val);     break;
+    case 'eval':   evaluate();        break;
+  }
+}
+
+// ─── Display ───
+function updateDisplay() {
+  if (!currentExpr) {
+    inputEl.textContent = '式を入力してください';
+    inputEl.classList.add('empty');
+  } else {
+    inputEl.textContent = prettifyExpr(currentExpr);
+    inputEl.classList.remove('empty');
+  }
+}
+
+function prettifyExpr(s) {
+  return s
+    .replace(/\*/g, '×')
+    .replace(/(?<=\d)\/(?=\d)/g, '/');  // keep / as-is for clarity
+}
+
+function clearAll() {
+  currentExpr = '';
+  resultEl.innerHTML = '';
+  resultEl.classList.remove('error');
+  updateDisplay();
+}
+
+function backspace() {
+  currentExpr = currentExpr.slice(0, -1);
+  resultEl.innerHTML = '';
+  resultEl.classList.remove('error');
+  updateDisplay();
+}
+
+function insert(v) {
+  currentExpr += v;
+  updateDisplay();
+}
+
+// ─── Normalization ───
+function normalize(expr) {
+  return expr
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/−/g, '-')
+    .replace(/\s+/g, '');
+}
+
+// ─── Fraction formatting ───
+function fracToString(f) {
+  // f is math.js Fraction { s, n, d }
+  if (f.d === 1) return (f.s * f.n).toString();
+  const sign = f.s < 0 ? '-' : '';
+  return `${sign}${f.n}/${f.d}`;
+}
+
+function fracToHTML(f) {
+  if (f.d === 1) return (f.s * f.n).toString();
+  const sign = f.s < 0 ? '−' : '';
+  return `${sign}<span class="frac"><span class="num">${f.n}</span><span class="den">${f.d}</span></span>`;
+}
+
+function formatNumber(v) {
+  if (v && typeof v === 'object' && 'n' in v && 'd' in v) {
+    return { text: fracToString(v), html: fracToHTML(v), decimal: (v.s * v.n / v.d) };
+  }
+  if (typeof v === 'number') {
+    const rounded = Math.round(v * 1e10) / 1e10;
+    return { text: rounded.toString(), html: rounded.toString(), decimal: rounded };
+  }
+  const s = v.toString();
+  return { text: s, html: s, decimal: parseFloat(s) };
+}
+
+// ─── Linear equation solver via coefficient sampling ───
+// Strategy: rewrite "lhs = rhs" as f(x) = (lhs) - (rhs).
+// For polynomial of degree ≤ 2, sample f(0), f(1), f(-1) and recover a, b, c.
+function solveEquation(expr) {
+  const parts = expr.split('=');
+  if (parts.length !== 2) throw new Error('「=」は1つだけ使ってください');
+  if (!expr.includes('x')) throw new Error('方程式には x が必要です');
+
+  const lhs = parts[0].trim();
+  const rhs = parts[1].trim();
+  if (!lhs || !rhs) throw new Error('方程式が不完全です');
+
+  // f(x) = (lhs) - (rhs)
+  const fnSrc = `(${lhs})-(${rhs})`;
+  let node;
+  try { node = math.parse(fnSrc); }
+  catch { throw new Error('式の構文エラー'); }
+
+  const evalAt = (x) => {
+    try {
+      const result = node.evaluate({ x: math.fraction(x) });
+      // ensure Fraction
+      if (result && typeof result === 'object' && 'n' in result) return result;
+      return math.fraction(result);
+    } catch (e) {
+      throw new Error('評価エラー');
+    }
+  };
+
+  const f0  = evalAt(0);
+  const f1  = evalAt(1);
+  const fM1 = evalAt(-1);
+
+  // Linear test: f(1) - f(0) == f(0) - f(-1) means slopes match → linear
+  const slope1 = math.subtract(f1, f0);     // a + b·? ... for linear: this is a
+  const slope2 = math.subtract(f0, fM1);    // also a for linear
+
+  if (math.equal(slope1, slope2)) {
+    // Linear: f(x) = a·x + b ; a = slope1, b = f0
+    const a = slope1;
+    const b = f0;
+    if (math.equal(a, math.fraction(0))) {
+      if (math.equal(b, math.fraction(0))) return { kind: 'all' };
+      return { kind: 'none' };
+    }
+    const x = math.divide(math.unaryMinus(b), a);
+    return { kind: 'linear', solutions: [x] };
+  }
+
+  // Quadratic: f(x) = a·x² + b·x + c
+  // f(0) = c, f(1) = a + b + c, f(-1) = a - b + c
+  // → a + b = f(1) - c ,  a - b = f(-1) - c
+  // → a = ((f1 - c) + (f-1 - c))/2,  b = ((f1 - c) - (f-1 - c))/2
+  const c = f0;
+  const sumAB  = math.subtract(f1,  c);
+  const diffAB = math.subtract(fM1, c);
+  const a = math.divide(math.add(sumAB, diffAB), math.fraction(2));
+  const b = math.divide(math.subtract(sumAB, diffAB), math.fraction(2));
+
+  // Verify quadratic (sample at x=2 to ensure no degree-3+ term)
+  const f2 = evalAt(2);
+  const predicted2 = math.add(
+    math.add(math.multiply(a, math.fraction(4)), math.multiply(b, math.fraction(2))),
+    c
+  );
+  if (!math.equal(predicted2, f2)) {
+    throw new Error('この計算機は1次・2次方程式まで対応');
+  }
+
+  if (math.equal(a, math.fraction(0))) {
+    // Shouldn't happen if linear test failed, but guard anyway
+    throw new Error('係数を判別できませんでした');
+  }
+
+  // Quadratic formula — switch to floats for sqrt
+  const aN = a.s * a.n / a.d;
+  const bN = b.s * b.n / b.d;
+  const cN = c.s * c.n / c.d;
+  const D  = bN * bN - 4 * aN * cN;
+
+  if (D < 0) return { kind: 'complex', a: aN, b: bN, D };
+  if (D === 0) {
+    const x = math.divide(math.unaryMinus(b), math.multiply(math.fraction(2), a));
+    return { kind: 'quad', solutions: [x] };
+  }
+  const sqrtD = Math.sqrt(D);
+  // Try to get exact if sqrtD is integer
+  const sqrtDInt = Math.round(sqrtD);
+  if (Math.abs(sqrtDInt * sqrtDInt - D) < 1e-9) {
+    const sD = math.fraction(sqrtDInt);
+    const denom = math.multiply(math.fraction(2), a);
+    const x1 = math.divide(math.add(math.unaryMinus(b), sD), denom);
+    const x2 = math.divide(math.subtract(math.unaryMinus(b), sD), denom);
+    return { kind: 'quad', solutions: [x1, x2] };
+  }
+  // Irrational roots — return floats
+  const x1f = (-bN + sqrtD) / (2 * aN);
+  const x2f = (-bN - sqrtD) / (2 * aN);
+  return { kind: 'quad-float', solutions: [x1f, x2f] };
+}
+
+// ─── Main evaluate ───
+function evaluate() {
+  if (!currentExpr.trim()) return;
+  const expr = normalize(currentExpr);
+
+  try {
+    if (expr.includes('=')) {
+      const sol = solveEquation(expr);
+      renderEquationResult(sol);
+    } else {
+      const value = math.evaluate(expr);
+      renderArithmeticResult(value);
+    }
+  } catch (e) {
+    showError(e.message || '計算できませんでした');
+  }
+}
+
+// ─── Render arithmetic ───
+function renderArithmeticResult(value) {
+  const f = formatNumber(value);
+  resultEl.classList.remove('error');
+
+  let mainHTML = `<div class="result-main animate"><span class="result-prefix">=</span>${f.html}</div>`;
+
+  // Decimal approximation if fraction
+  let decimalHTML = '';
+  if (typeof value === 'object' && 'd' in value && value.d !== 1) {
+    const dec = (value.s * value.n / value.d);
+    const decStr = dec.toFixed(8).replace(/\.?0+$/, '');
+    decimalHTML = `<div class="result-decimal">≈ ${decStr}</div>`;
+  }
+
+  resultEl.innerHTML = mainHTML + decimalHTML;
+  addToHistory(currentExpr, f.text);
+}
+
+// ─── Render equation ───
+function renderEquationResult(sol) {
+  resultEl.classList.remove('error');
+
+  if (sol.kind === 'all') {
+    resultEl.innerHTML = `<div class="result-main animate" style="font-style:italic;font-size:1.4rem">x は任意の実数</div>`;
+    addToHistory(currentExpr, 'x ∈ ℝ');
+    return;
+  }
+  if (sol.kind === 'none') {
+    resultEl.innerHTML = `<div class="result-main animate" style="font-style:italic;font-size:1.4rem">解なし</div>`;
+    addToHistory(currentExpr, '解なし');
+    return;
+  }
+  if (sol.kind === 'complex') {
+    // Express complex roots
+    const aN = sol.a, bN = sol.b, D = sol.D;
+    const re = (-bN / (2 * aN));
+    const im = Math.sqrt(-D) / (2 * aN);
+    const reStr = formatFloat(re);
+    const imStr = formatFloat(Math.abs(im));
+    const sign = im >= 0 ? '+' : '−';
+    resultEl.innerHTML = `
+      <div class="result-main animate"><span class="result-prefix">x =</span>${reStr} ${sign} ${imStr}<em style="font-family:'EB Garamond',serif;font-style:italic;margin-left:0.1em">i</em></div>
+      <div class="result-decimal">複素数解（判別式 &lt; 0）</div>
+    `;
+    addToHistory(currentExpr, `${reStr} ± ${imStr}i`);
+    return;
+  }
+  if (sol.kind === 'quad-float') {
+    const [x1, x2] = sol.solutions;
+    resultEl.innerHTML = `
+      <div class="result-main animate"><span class="result-prefix">x =</span>${formatFloat(x1)}</div>
+      <div class="result-main"><span class="result-prefix">x =</span>${formatFloat(x2)}</div>
+      <div class="result-decimal">（無理数解・近似値）</div>
+    `;
+    addToHistory(currentExpr, `${formatFloat(x1)}, ${formatFloat(x2)}`);
+    return;
+  }
+
+  // linear or quad with exact solutions
+  const fmts = sol.solutions.map(formatNumber);
+  let html = '';
+  fmts.forEach((f, i) => {
+    const animClass = i === 0 ? 'animate' : '';
+    html += `<div class="result-main ${animClass}"><span class="result-prefix">x =</span>${f.html}</div>`;
+    if (f.text.includes('/')) {
+      const dec = f.decimal.toFixed(6).replace(/\.?0+$/, '');
+      html += `<div class="result-decimal">≈ ${dec}</div>`;
+    }
+  });
+  resultEl.innerHTML = html;
+
+  const summary = fmts.map(f => f.text).join(', ');
+  addToHistory(currentExpr, `x = ${summary}`);
+}
+
+function formatFloat(n) {
+  const r = Math.round(n * 1e6) / 1e6;
+  return r.toString();
+}
+
+function showError(msg) {
+  resultEl.classList.add('error');
+  resultEl.innerHTML = `<div class="result-main animate">${msg}</div>`;
+}
+
+// ─── History ───
+function addToHistory(expr, result) {
+  history.unshift({ expr: prettifyExpr(expr), result });
+  if (history.length > 30) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  if (history.length === 0) {
+    historyEl.innerHTML = `<div class="history-empty">まだ計算履歴はありません</div>`;
+    return;
+  }
+  historyEl.innerHTML = '';
+  history.forEach(({ expr, result }) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<span class="expr">${escapeHTML(expr)}</span><span class="result">${escapeHTML(result)}</span>`;
+    item.addEventListener('click', () => {
+      currentExpr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+      updateDisplay();
+    });
+    historyEl.appendChild(item);
+  });
+}
+
+function escapeHTML(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+clearHistBtn.addEventListener('click', () => {
+  history.length = 0;
+  renderHistory();
+});
+
+// ─── Keyboard support ───
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+
+  if (/^[0-9.()x=+\-]$/.test(k)) {
+    e.preventDefault();
+    insert(k);
+  } else if (k === '*') {
+    e.preventDefault(); insert('*');
+  } else if (k === '/') {
+    e.preventDefault(); insert('/');
+  } else if (k === 'Enter') {
+    e.preventDefault(); evaluate();
+  } else if (k === 'Backspace') {
+    e.preventDefault(); backspace();
+  } else if (k === 'Escape' || (k === 'Delete')) {
+    e.preventDefault(); clearAll();
+  }
+});
+
+// ─── Init ───
+updateDisplay();
+</script>
+</body>
+</html>
